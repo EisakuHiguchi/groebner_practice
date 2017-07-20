@@ -1,0 +1,38 @@
+load("gr")$
+load("C:/Program Files/asir/lib/asir-contrib/noro_pd.rr")$
+load("C:/Users/root/Desktop/nf_r2.rr")$
+
+VL = [x, y]$
+F = [x^2+y^2-1,x^3+y^3-1]$
+// order はプリセット
+
+D = []$
+for(I = 0; I < length(F); I++){
+    for(J = I + 1; J < length(F); J++){
+        D = append(D, [[F[I],F[J]]]);
+    }
+}
+
+G = F$
+
+print("loop start")$
+while(length(D) != 0) {
+    C = car(D);
+    D = cdr(D);
+    
+    S = sp2(C[0], C[1], VL, 0)$ // external program
+    H = p_true_nf(S, G, VL, 0)$
+    Htemp = H[0];
+    if (Htemp != 0){
+        G = append(G, [Htemp]);
+        N = length(G);
+        for(I = 0; I < N; I++) {
+            D = append(D, [[G[I], Htemp]]);
+        }
+    }
+}
+
+print("result:")$
+print(G)$
+
+end$

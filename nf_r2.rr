@@ -1,0 +1,324 @@
+/*****************************************************************
+ * 
+ * 2 変数有理関数係数微分作用素 R = Q(x,y)<dx,dy> の積の計算 
+ *
+ *****************************************************************/
+
+/* 2 変数有理関数係数微分作用素 R = Q(x,y)<dx,dy> の元の積を計算 */
+/* F, G   : R = Q(x,y)<dx,dy> の元                               */
+/* return : F と G の積                                          */
+def d_mult2(F, G)
+{
+	NX = deg(nm(F), dx);
+	NY = deg(nm(F), dy);
+	A = 0;
+	for (KX = 0; KX <= NX; KX++) {
+		for (KY = 0; KY <= NY; KY++) {
+			/* ライプニッツの公式 */
+			A = A + 1/(fac(KX) * fac(KY)) * diff3(F, dx, KX, dy, KY) * diff3(G, x, KX, y, KY);
+			A = red(A);
+		}		
+	}
+	return A;
+}
+
+def test_d_mult2()
+{
+	return d_mult2(x*dx*dy, (y/x)*dx^2);
+}
+
+/* F を X で M 階微分, Y で N 階微分を計算              */
+/* F      : R = Q(x,y)<dx,dy> の元                      */
+/* X, Y   : 変数                                        */
+/* M, N   : 非負整数                                    */
+/* return : F を X で M 階微分し, Y で N 階微分したもの */   
+def diff3(F, X, M, Y, N)
+{
+	for (I = 0; I < M; I++) 
+		F = diff(F, X); /* F を X で微分 */
+	for (I = 0; I < N; I++) 
+		F = diff(F, Y); /* F を Y で微分 */
+	return F;
+}
+
+def test_diff3()
+{
+	return diff3(x^3*y^3, x, 2, y, 3);
+}
+
+
+/*****************************************************************
+ * 
+ * 2 変数有理関数係数微分作用素 R = Q(x,y)<dx,dy> での正規形の計算 
+ *
+ *****************************************************************/
+
+/* 正規形                                   */
+/* F      : R = Q(x,y)<dx,dy> の元          */ 
+/* G      : R = Q(x,y)<dx,dy> の元のリスト  */
+/* VL     : 微分作用素を表す変数のリスト    */
+/* Order  : 項順序                          */
+/* return : F の G による正規形と商のリスト */
+def normal_form2(F, G, VL, Order)
+{
+	M = length(G); 
+	Q = newvect(M); /* 商を格納するベクトル */
+	R = 0;	        /* 正規形を格納する変数 */
+	while (F != 0) {
+		L = w_normal_form2(F, G, VL, Order); /* F の G による弱正規形の計算 */
+		RR = L[0];                           /* 弱正規形 */
+		QQ = L[1];                           /* 商       */
+		F = RR - in2(RR, VL, Order);
+		R = R + in2(RR, VL, Order);
+		Q = Q + QQ;
+		R = red(R);                          /* 有理式 R を約分 */
+		Q = map(red, Q);                     /* 有理式のベクトル Q の各成分を約分 */
+	}
+	return [R, Q];
+}
+
+def test_normal_form2()
+{
+	/* 例 1 より */
+	F = dx*dy^3;
+	G = [dx*dy + 1, 2*y*dy^2-dx+3*dy+2*x];
+	return normal_form2(F, G, [dx,dy], 0);	 
+}
+
+
+/* 弱正規形                                   */
+/* F      : R = Q(x,y)<dx,dy> の元            */ 
+/* G      : R = Q(x,y)<dx,dy> の元のリスト    */
+/* VL     : 微分作用素を表す変数のリスト      */
+/* Order  : 項順序                            */
+/* return : F の G による弱正規形と商のリスト */
+def w_normal_form2(F, G, VL, Order)
+{
+	M = length(G);
+	Q = newvect(M); /* 商を格納するベクトル   */
+	R = F;	        /* 弱正規形を格納する変数 */
+	while ((Index = reducible2(R, G, VL, Order)) != -1) {
+		S = G[Index];			
+		D = tdiv(in2_(R, VL, Order), in2_(S, VL, Order));
+		X = c_in2(R, VL, Order) / c_in2(S, VL, Order);
+		T = d_mult2(X*D, S);
+		Q[Index] = Q[Index] + X*D;
+		R = R - T;
+		Q[Index] = red(Q[Index]); /* 有理式 Q[Index] の約分 */
+		R = red(R);               /* 有理式 R の約分        */
+	}	
+	return [R, Q];
+}
+
+/* R が G の先頭単項式で割り切れるかどうか          */
+/* R      : R = Q(x,y)<dx,dy> の元                  */ 
+/* G      : R = Q(x,y)<dx,dy> の元のリスト          */
+/* VL     : 微分作用素を表す変数のリスト            */
+/* Order  : 項順序                                  */
+/* return : R が G の先頭単項式で割り切れるかどうか */
+/*          割り切れるなら, 割り切れる G の index   */
+/*          割り切れるないなら, -1                  */
+def reducible2(R, G, VL, Order)
+{
+	M = length(G);
+	InR = in2_(R, VL, Order);
+	for (I = 0; I < M; I++) {
+		InG = in2_(G[I], VL, Order);
+		T = tdiv(InR, InG); /* InR が InG で割り切れるかどうか(割り切れなければ 0 になる) */
+		if (T != 0) /* InR が InG で割り切れた時 */
+			return I;
+	}
+	return -1; 
+}
+
+def test_w_normal_form2_()
+{
+	F = dx^3-x; 
+	G = x*dx-1;
+	L = w_normal_form2(F, [G], [dx,dy], 0); 
+	R = L[0];
+	Q = L[1][0];
+	print("[Q, R] :"); print([Q, R]);
+	print(red(d_mult2(Q, G) + R));
+}
+
+def test_w_normal_form2_2()
+{
+	F = (1/x+y)*dx*dy+y*dx+x*dy+1/x; 
+	G = [1/y*dx+1, 1/x*dy+1];
+	L = w_normal_form2(F, G, [dx,dy], 0); 
+	R = L[0];
+	Q = L[1];
+	print("[Q, R] :"); print([Q, R]);
+	for (S = 0, I = 0; I < length(G); I++)
+		S += d_mult2(Q[I], G[I]); 
+	S += R;
+	print(red(S));
+	print(red(F));
+}
+
+/* 先頭項(係数込み)                      */
+/* F      : R = Q(x,y)<dx,dy> の元       */ 
+/* VL     : 微分作用素を表す変数のリスト */
+/* Order  : 項順序                       */
+/* return : F の先頭項                   */
+def in2(F, VL, Order)
+{
+	OldOrder = dp_ord();    /* 元々設定されている項順序を OldOrder に保存 */
+	dp_ord(Order);          /* 新たな項順序 Order を設定                  */
+	NM = nm(F);             /* 有理式 F の分子 NM                         */
+	DNM = dp_ptod(NM, VL);  /* 多項式 NM を分散表現多項式 DNM に変換      */
+	DIN = dp_hm(DNM);       /* DNM の先頭項 DIN を取り出す                */
+	IN = dp_dtop(DIN, VL);  /* 分散表現多項式 DIN を多項式 IN に変換      */
+	IN = IN / dn(F);        /* 有理式 F の分母 dn(F) で割る               */
+	IN = red(IN);           /* 有理式 IN を約分                           */
+	dp_ord(OldOrder);       /* 元々の項順序 OldOrder に戻す               */
+	return IN;
+}
+
+def test_in2()
+{
+	F = 1/x*dx^2*dy^2+(1/x+y)*dx^3+dx+dy+1;
+	print(in2(F, [dx,dy], 2));
+	print(in2(F, [dx,dy], 0));
+}
+ 
+
+/* 先頭単項式(係数込み)                  */
+/* F      : R = Q(x,y)<dx,dy> の元       */ 
+/* VL     : 微分作用素を表す変数のリスト */
+/* Order  : 項順序                       */
+/* return : F の先頭単項式               */
+def in2_(F, VL, Order)
+{
+	OldOrder = dp_ord();     /* 元々設定されている項順序を OldOrder に保存 */
+	dp_ord(Order);           /* 新たな項順序 Order を設定                  */
+	NM = nm(F);              /* 有理式 F の分子 NM                         */
+	DNM = dp_ptod(NM, VL);   /* 多項式 NM を分散表現多項式 DNM に変換      */
+	DIN = dp_ht(DNM);        /* DNM の先頭単項式 DIN を取り出し            */
+	IN = dp_dtop(DIN, VL);   /* 分散表現多項式 DIN を多項式 IN に変換      */
+	dp_ord(OldOrder);        /* 元々の項順序 OldOrder に戻す               */
+	return IN;
+}
+
+def test_in2_()
+{
+	F = 1/x*dx^2*dy^2+(1/x+y)*dx^3+dx+dy+1;
+	print(in2_(F, [dx,dy], 2));
+	print(in2_(F, [dx,dy], 0));
+}
+
+/* 先頭係数                              */
+/* F      : R = Q(x,y)<dx,dy> の元       */ 
+/* VL     : 微分作用素を表す変数のリスト */
+/* Order  : 項順序                       */
+/* return : F の先頭係数                 */
+def c_in2(F, VL, Order)
+{
+	OldOrder = dp_ord();     /* 元々設定されている項順序を OldOrder に保存 */
+	dp_ord(Order);           /* 新たな項順序 Order を設定                  */
+	NM = nm(F);              /* 有理式 F の分子 NM                         */
+	DNM = dp_ptod(NM, VL);   /* 多項式 NM を分散表現多項式 DNM に変換      */
+	LC = dp_hc(DNM);         /* DNM の先頭係数 LC を取り出し               */
+	LC = LC / dn(F);         /* LC を有理式 F の分母 dn(F) で割る          */
+	LC = red(LC);            /* LC を約分                                  */
+	dp_ord(OldOrder);        /* 元々の項順序 OldOrder に戻す               */ 
+	return LC;
+}
+
+def test_c_in2()
+{
+	F = 1/x*dx^2*dy^2+(1/x+y)*dx^3+dx+dy+1;
+	print(c_in2(F, [dx,dy], 2));
+	print(c_in2(F, [dx,dy], 0));
+}
+
+/*****************************************************************
+ * 
+ * 2 変数有理関数係数微分作用素 R = Q(x,y)<dx,dy> での GB 計算 
+ *
+ *****************************************************************/
+
+/* S-式 sp(F,G) の計算                      */
+/* F, G   : R = Q(x,y)<dx,dy> の元          */ 
+/* VL     : 微分作用素を表す変数のリスト    */
+/* Order  : 項順序                          */
+/* return : sp(F, G)                        */
+def sp2(F, G, VL, Order)
+{
+	InF = in2_(F, VL, Order);
+	InG = in2_(G, VL, Order);
+	LCF = c_in2(F, VL, Order);
+	LCG = c_in2(G, VL, Order);
+	LCM = lcm(InF, InG);
+	MF = tdiv(LCM, InF);       /* LCM の InF による商 */    
+	MG = tdiv(LCM, InG);       /* LCM の InG による商 */
+	Sp = d_mult2(MF, F) - red(LCF/LCG) * d_mult2(MG, G);
+	return red(Sp);
+}
+
+def test_sp2()
+{
+	F = (1/x+y) * dx + 1;
+	G = (1/y+x) * dy + 1;
+	return sp2(F, G, [dx,dy], 0);
+}
+
+def test_sp2_2()
+{
+	/* 例 2 より */
+	F1 = dx^2 + y^2;
+	F2 = dy^2 + x^2;
+	return sp2(F1, F2, [dx,dy], 0);
+}
+
+/* R のイデアルのグレブナー基底計算                                 */
+/* L      : R = Q(x,y)<dx,dy> の元のリスト                          */ 
+/* VL     : 微分作用素を表す変数のリスト                            */
+/* Order  : 項順序                                                  */
+/* return : L のなすイデアルの項順序 Order についてのグレブナー基底 */
+def buchberger2(L, VL, Order)
+{
+	N = length(L);
+	Jlist = [];                                       /* index のペアが格納されるリスト */
+	for (I = 0; I < N; I++)
+		for (J = I + 1; J < N; J++)
+			Jlist = append(Jlist, [[I, J]]);  /* index のペアの生成 */     
+	while (Jlist != []) {
+		Index = car(Jlist); /* index のペアのリスト Jlist から先頭の元を取り出す */
+		Jlist = cdr(Jlist); /* index のペアのリスト Jlist から先頭の元を取り除く */
+		Sp = sp2(L[Index[0]], L[Index[1]], VL, Order); 
+		Result = normal_form2(Sp, L, VL, Order);
+		R = Result[0];                                       /* Sp の L による正規形 R                           */
+		if (R != 0) {                                        /* Sp の L による正規形 R が 0 でない時             */
+			L = append(L, [R]);                          /* R を L の末尾に追加                              */
+			N = length(L);
+			for (I = 0; I < N - 1; I++)
+				Jlist = append(Jlist, [[I, N - 1]]); /* 新たに追加された元 R に対する index のペアの生成 */
+		}
+	}
+	return L;
+}
+
+def test_buchberger2()
+{
+	/* 例 2 より */
+	F1 = dx^2 + y^2;
+	F2 = dy^2 + x^2;
+	return buchberger2([F1, F2], [dx,dy], 0);
+}
+
+def appell_f1()
+{
+	P1 = x*(1-x)*dx^2+y*(1-x)*dx*dy+(c-(a+b1+1)*x)*dx-b1*y*dy-a*b1;
+	P2 = y*(1-y)*dy^2+x*(1-y)*dx*dy+(c-(a+b2+1)*y)*dy-b2*x*dx-a*b2;
+	return [P1, P2];
+}
+
+def test_buchberger2_2()
+{
+	Id = appell_f1();
+	return buchberger2(Id, [dx,dy], 0);	
+}
+
+end$

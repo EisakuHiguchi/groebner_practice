@@ -1,0 +1,35 @@
+load("gr")$
+load("C:/Program Files/asir/lib/asir-contrib/noro_pd.rr")$
+load("C:/Users/root/Desktop/nf_r2.rr")$
+
+def my_buchberger(F,VL,Order) {
+    
+    D = []$
+    for(I = 0; I < length(F); I++){
+	for(J = I + 1; J < length(F); J++){
+	    D = append(D, [[F[I],F[J]]]);
+	}
+    }
+
+    G = F$
+
+    // print("loop start")$
+    while(length(D) != 0) {
+	C = car(D);
+	D = cdr(D);
+	
+	S = sp2(C[0], C[1], VL, Order)$ // external program
+	H = p_true_nf(S, G, VL, Order)$
+	Htemp = H[0];
+	if (Htemp != 0){
+	    G = append(G, [Htemp]);
+	    N = length(G);
+	    for(I = 0; I < N; I++) {
+		D = append(D, [[G[I], Htemp]]);
+	    }
+	}
+    }
+    return G;
+}
+
+end$
